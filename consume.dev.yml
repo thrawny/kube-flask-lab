@@ -1,0 +1,68 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: consume
+  labels:
+    app: consume
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: consume
+    spec:
+      containers:
+      - name: consume
+        image: flask-lab:latest
+        imagePullPolicy: Never
+        command: ["flask", "run", "--host", "0.0.0.0"]
+        env:
+        - name: FLASK_APP
+          value: "consume.py"
+        - name: FLASK_DEBUG
+          value: "1"
+        ports:
+        - containerPort: 5000
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /src
+          name: code
+      volumes:
+      - name: code
+        hostPath:
+          path: /repos/flask-lab
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consume
+spec:
+  selector:
+    app: consume
+  ports:
+  - port: 5000
+    targetPort: 5000
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: consume-ingress
+  labels:
+    app: consume
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: flask-lab.foo
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: consume
+          servicePort: 5000
